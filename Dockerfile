@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
-    # Install Go compiler
     golang \
     && rm -rf /var/lib/apt/lists/*
 
@@ -28,13 +27,13 @@ RUN uv pip install mcpo && rm -rf ~/.cache
 WORKDIR /
 RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git /mcp_server_src
 
-# Change to its directory
+# Change to the repository root where go.mod is located
 WORKDIR /mcp_server_src
 
 # Clean Go modules and download dependencies
 RUN go mod tidy
 
-# Build the Go application
+# Build the Go application, specifying the main package path
 # The output binary 'mcp-server' will be placed in the current working directory (/mcp_server_src)
 RUN go build -o mcp-server ./cmd/mcp-server
 
@@ -42,15 +41,15 @@ RUN go build -o mcp-server ./cmd/mcp-server
 # Set the primary working directory back to /app for mcpo execution
 WORKDIR /app
 
-# Expose the port mcpo will listen on
+# Expose the port mcpo will listen on (updated to 8003 as per your previous note)
 EXPOSE 8003
 
 # Set default API keys and port for mcpo.
 # IMPORTANT: These should be overridden with strong, unique keys
 # in your deployment environment (e.g., Coolify, Kubernetes secrets, .env file).
 ENV MCPO_API_KEY="your-secret-mcpo-api-key"
-# Port for MCPO to listen on
-ENV MCPO_PORT=8002
+# Port for MCPO to listen on (updated to 8003)
+ENV MCPO_PORT=8003
 
 # Command to run mcpo, passing the Model Context Protocol stdio command.
 # This launches the compiled Go binary and proxies its standard I/O to mcpo.
