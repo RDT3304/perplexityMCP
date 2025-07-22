@@ -1,6 +1,9 @@
 # Stage 1: Build the Perplexity MCP application
 FROM node:20-slim AS builder
 
+# Install git in the builder stage
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
 # Set working directory
 WORKDIR /app
 
@@ -29,9 +32,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install uv (from official binary)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# Install base dependencies (git, curl, ca-certificates)
+# Install base dependencies (curl, ca-certificates)
+# Git is no longer needed here as the repo is cloned in the builder stage
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git \
     curl \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
