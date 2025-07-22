@@ -7,10 +7,7 @@ WORKDIR /app
 # Clone the repository
 RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git .
 
-# Install dependencies for the main project
-# This assumes package.json is at the root if it's a monorepo or similar,
-# but the README suggests navigating to perplexity-ask
-# Let's navigate to the specific directory as per their README
+# Navigate to the specific directory as per their README for dependency installation and build
 WORKDIR /app/perplexity-ask
 
 # Install node modules
@@ -37,7 +34,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
-    # Remove golang as it's not needed for JS/TS
     && rm -rf /var/lib/apt/lists/*
 
 # --- MCPO Python Virtual Environment Setup ---
@@ -69,7 +65,9 @@ EXPOSE 8003
 ENV MCPO_API_KEY="your-secret-mcpo-api-key"
 # Port for MCPO to listen on
 ENV MCPO_PORT=8003
-ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE" # This is for the Perplexity MCP itself
+
+# This is for the Perplexity MCP itself
+ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE"
 
 # Command to run mcpo, passing the Perplexity MCP stdio command.
 # The command for the Perplexity MCP will be 'node /mcp_server_src/perplexity-ask/index.js'
