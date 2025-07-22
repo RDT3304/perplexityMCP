@@ -12,7 +12,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
-    # Remove golang from apt-get as we'll install a specific version
     && rm -rf /var/lib/apt/lists/*
 
 # --- Install Go 1.22 ---
@@ -33,15 +32,21 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN uv pip install mcpo && rm -rf ~/.cache
 
 # --- Model Context Protocol Source Code & Build Steps (Go) ---
-# Clone the repository
+# Clone the repository to a temporary folder
 WORKDIR /
-RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git /mcp_server_src
+RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git /tmp/mcp_repo \
+    # Move contents from the cloned repo into /mcp_server_src
+    && mkdir -p /mcp_server_src \
+    && mv /tmp/mcp_repo/* /tmp/mcp_repo/.* /mcp_server_src/ || true \
+    && rm -rf /tmp/mcp_repo
 
 # Change to the repository root where go.mod is located
 WORKDIR /mcp_server_src
 
-# Verify contents before running go mod tidy (temporary for debugging)
-# RUN ls -F /mcp_server_src/
+# IMPORTANT DEBUG STEP: List contents to verify `go.mod` is here
+# Uncomment the next line if it fails again
+RUN ls -F /mcp_server_src/
+# Expected output from above: You should see go.mod listed here
 
 # Clean Go modules and download dependencies
 RUN go mod tidy
