@@ -75,4 +75,4 @@ ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE"
 # The command for the Perplexity MCP will be 'node /mcp_server_src/perplexity-ask/index.js'
 # (assuming index.js is the main entry point after build, or the source if no build)
 # You might need to adjust 'index.js' based on the actual entry point of their project.
-CMD ["mcpo", "--port", "${MCPO_PORT}", "--api-key", "${MCPO_API_KEY}", "--", "node", "/mcp_server_src/perplexity-ask/index.js"]
+CMD ["sh", "-c", "mcpo --port \"${MCPO_PORT}\" --api-key \"${MCPO_API_KEY}\" -- node /mcp_server_src/perplexity-ask/index.js"]
