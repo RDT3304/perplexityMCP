@@ -1,8 +1,8 @@
 # Stage 1: Build the Perplexity MCP application
 FROM node:20-slim AS builder
 
-# Install git in the builder stage
-RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+# Install git and ca-certificates in the builder stage
+RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
@@ -32,8 +32,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install uv (from official binary)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
-# Install base dependencies (curl, ca-certificates)
-# Git is no longer needed here as the repo is cloned in the builder stage
+# Install base dependencies (curl, ca-certificates) - ca-certificates is still good to have here for general use
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
@@ -76,4 +75,4 @@ ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE"
 # The command for the Perplexity MCP will be 'node /mcp_server_src/perplexity-ask/index.js'
 # (assuming index.js is the main entry point after build, or the source if no build)
 # You might need to adjust 'index.js' based on the actual entry point of their project.
-CMD mcpo --port ${MCPO_PORT} --api-key ${MCPO_API_KEY} -- node /mcp_server_src/perplexity-ask/index.js
+CMD ["mcpo", "--port", "${MCPO_PORT}", "--api-key", "${MCPO_API_KEY}", "--", "node", "/mcp_server_src/perplexity-ask/index.js"]
