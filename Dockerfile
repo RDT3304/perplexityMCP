@@ -43,7 +43,7 @@ RUN go build -o mcp-server ./cmd/mcp-server
 WORKDIR /app
 
 # Expose the port mcpo will listen on
-EXPOSE 8002
+EXPOSE 8003
 
 # Set default API keys and port for mcpo.
 # IMPORTANT: These should be overridden with strong, unique keys
