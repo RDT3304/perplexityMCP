@@ -50,6 +50,11 @@ RUN uv pip install mcpo && rm -rf ~/.cache
 # This copies the entire 'perplexity-ask' directory from the builder stage
 COPY --from=builder /app/perplexity-ask /mcp_server_src/perplexity-ask
 
+# Add a debugging step here to list the contents of the copied directory
+RUN ls -la /mcp_server_src/perplexity-ask/
+RUN ls -la /mcp_server_src/perplexity-ask/dist/ || echo "No 'dist' directory found." # Check common build output dir
+RUN ls -la /mcp_server_src/perplexity-ask/build/ || echo "No 'build' directory found." # Check another common build output dir
+
 # Since mcpo will execute the Node.js application, Node.js runtime is needed in the final image
 # We can't use the 'node' base image directly for the final stage because we need python:3.12-slim-bookworm
 # So, we need to install Node.js separately in this stage.
