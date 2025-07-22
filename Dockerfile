@@ -16,12 +16,9 @@ WORKDIR /app/perplexity-ask
 # Install node modules
 RUN npm install
 
-# Build the TypeScript project (if a build step is required)
-# The README doesn't explicitly mention 'npm run build', but it's common for TS projects.
-# If 'npm start' works directly from source, this might not be needed.
-# We'll include it for robustness, assuming a production build.
-# Check their package.json for common build scripts like 'build', 'compile', etc.
-RUN npm run build || echo "No build script found or build not necessary for this project. Continuing."
+# Build the TypeScript project
+# Based on package.json, 'npm run build' (which runs 'tsc') will output to 'dist/'.
+RUN npm run build
 
 # Stage 2: Create the final, lean production image
 FROM python:3.12-slim-bookworm
@@ -50,11 +47,6 @@ RUN uv pip install mcpo && rm -rf ~/.cache
 # This copies the entire 'perplexity-ask' directory from the builder stage
 COPY --from=builder /app/perplexity-ask /mcp_server_src/perplexity-ask
 
-# Add a debugging step here to list the contents of the copied directory
-RUN ls -la /mcp_server_src/perplexity-ask/
-RUN ls -la /mcp_server_src/perplexity-ask/dist/ || echo "No 'dist' directory found." # Check common build output dir
-RUN ls -la /mcp_server_src/perplexity-ask/build/ || echo "No 'build' directory found." # Check another common build output dir
-
 # Since mcpo will execute the Node.js application, Node.js runtime is needed in the final image
 # We can't use the 'node' base image directly for the final stage because we need python:3.12-slim-bookworm
 # So, we need to install Node.js separately in this stage.
@@ -77,7 +69,5 @@ ENV MCPO_PORT=8003
 ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE"
 
 # Command to run mcpo, passing the Perplexity MCP stdio command.
-# The command for the Perplexity MCP will be 'node /mcp_server_src/perplexity-ask/index.js'
-# (assuming index.js is the main entry point after build, or the source if no build)
-# You might need to adjust 'index.js' based on the actual entry point of their project.
-CMD ["sh", "-c", "mcpo --port \"${MCPO_PORT}\" --api-key \"${MCPO_API_KEY}\" -- node /mcp_server_src/perplexity-ask/index.js"]
+# CORRECTED PATH: node /mcp_server_src/perplexity-ask/dist/index.js
+CMD ["sh", "-c", "mcpo --port \"${MCPO_PORT}\" --api-key \"${MCPO_API_KEY}\" -- node /mcp_server_src/perplexity-ask/dist/index.js"]
