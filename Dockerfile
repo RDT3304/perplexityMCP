@@ -1,4 +1,29 @@
-# Start with the specified Python base image for mcpo
+# Stage 1: Build the Perplexity MCP application
+FROM node:20-slim AS builder
+
+# Set working directory
+WORKDIR /app
+
+# Clone the repository
+RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git .
+
+# Install dependencies for the main project
+# This assumes package.json is at the root if it's a monorepo or similar,
+# but the README suggests navigating to perplexity-ask
+# Let's navigate to the specific directory as per their README
+WORKDIR /app/perplexity-ask
+
+# Install node modules
+RUN npm install
+
+# Build the TypeScript project (if a build step is required)
+# The README doesn't explicitly mention 'npm run build', but it's common for TS projects.
+# If 'npm start' works directly from source, this might not be needed.
+# We'll include it for robustness, assuming a production build.
+# Check their package.json for common build scripts like 'build', 'compile', etc.
+RUN npm run build || echo "No build script found or build not necessary for this project. Continuing."
+
+# Stage 2: Create the final, lean production image
 FROM python:3.12-slim-bookworm
 
 # Set environment variables for non-interactive installations
@@ -12,52 +37,28 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     curl \
     ca-certificates \
+    # Remove golang as it's not needed for JS/TS
     && rm -rf /var/lib/apt/lists/*
-
-# --- Install Go 1.22 ---
-# Define Go version
-ENV GOLANG_VERSION=1.22.4
-ENV GOROOT=/usr/local/go
-ENV PATH="${GOROOT}/bin:$PATH"
-
-RUN curl -OL https://go.dev/dl/go${GOLANG_VERSION}.linux-amd64.tar.gz \
-    && tar -C /usr/local -xzf go${GOLANG_VERSION}.linux-amd64.tar.gz \
-    && rm go${GOLANG_VERSION}.linux-amd64.tar.gz
 
 # --- MCPO Python Virtual Environment Setup ---
 WORKDIR /app
+
 ENV VIRTUAL_ENV=/app/.venv
 RUN uv venv "$VIRTUAL_ENV"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 RUN uv pip install mcpo && rm -rf ~/.cache
 
-# --- Model Context Protocol Source Code & Build Steps (Go) ---
-# Clone the repository to a temporary folder
-WORKDIR /
-RUN git clone https://github.com/ppl-ai/modelcontextprotocol.git /tmp/mcp_repo \
-    # Move contents from the cloned repo into /mcp_server_src
-    && mkdir -p /mcp_server_src \
-    && mv /tmp/mcp_repo/* /tmp/mcp_repo/.* /mcp_server_src/ || true \
-    && rm -rf /tmp/mcp_repo
+# Copy the built Perplexity MCP application from the builder stage
+# This copies the entire 'perplexity-ask' directory from the builder stage
+COPY --from=builder /app/perplexity-ask /mcp_server_src/perplexity-ask
 
-# Change to the repository root where go.mod is located
-WORKDIR /mcp_server_src
-
-# IMPORTANT DEBUG STEP: List contents to verify `go.mod` is here
-# Uncomment the next line if it fails again
-RUN ls -F /mcp_server_src/
-# Expected output from above: You should see go.mod listed here
-
-# Clean Go modules and download dependencies
-RUN go mod tidy
-
-# Build the Go application, specifying the main package path
-# The output binary 'mcp-server' will be placed in the current working directory (/mcp_server_src)
-RUN go build -o mcp-server ./cmd/mcp-server
-
-# --- Final Configuration ---
-# Set the primary working directory back to /app for mcpo execution
-WORKDIR /app
+# Since mcpo will execute the Node.js application, Node.js runtime is needed in the final image
+# We can't use the 'node' base image directly for the final stage because we need python:3.12-slim-bookworm
+# So, we need to install Node.js separately in this stage.
+# This will add some size, but is necessary.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
 
 # Expose the port mcpo will listen on
 EXPOSE 8003
@@ -68,7 +69,10 @@ EXPOSE 8003
 ENV MCPO_API_KEY="your-secret-mcpo-api-key"
 # Port for MCPO to listen on
 ENV MCPO_PORT=8003
+ENV PERPLEXITY_API_KEY="YOUR_PERPLEXITY_API_KEY_HERE" # This is for the Perplexity MCP itself
 
-# Command to run mcpo, passing the Model Context Protocol stdio command.
-# This launches the compiled Go binary and proxies its standard I/O to mcpo.
-CMD mcpo --port ${MCPO_PORT} --api-key ${MCPO_API_KEY} -- /mcp_server_src/mcp-server
+# Command to run mcpo, passing the Perplexity MCP stdio command.
+# The command for the Perplexity MCP will be 'node /mcp_server_src/perplexity-ask/index.js'
+# (assuming index.js is the main entry point after build, or the source if no build)
+# You might need to adjust 'index.js' based on the actual entry point of their project.
+CMD mcpo --port ${MCPO_PORT} --api-key ${MCPO_API_KEY} -- node /mcp_server_src/perplexity-ask/index.js
